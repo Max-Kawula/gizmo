@@ -1,20 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>//using malloc
-
 #include "raylib.h"
 #include "rlgl.h"
 
 #define RAYLIB_NEW_RLGL
 
-//TODO move to a "gizmo.h"?
 typedef struct gizmo {
-	Model* model;//may or may not want to do it like this.
-	Vector3 Pos;
+	Model model;
+	Vector3 pos;
 	float angle;
-	Vector3 Vel;
+	Vector3 vel;
 } gizmo;
 
-//if raylib is cool, we pass thru gizmo and the controller inputs will be available.
 void updateGizmo(gizmo* g);
 
 
@@ -22,6 +19,13 @@ void updateGizmo(gizmo* g);
 // PROGRAM //
 /////////////
 int main(void) {
+
+	gizmo giz;
+	giz.pos = (Vector3){0.0f,0.0f,0.0f};
+	giz.angle = 0.0f;
+	giz.vel = (Vector3){0.0f,0.0f,0.0f}; 
+	giz.model = LoadModel("../assets/models/gizmoid.obj");
+	*giz.model.materials = LoadMaterialDefault(); //TODO give the dude a mat
 	
 	const int screenWidth = 640;
 	const int screenHeight = 480;
