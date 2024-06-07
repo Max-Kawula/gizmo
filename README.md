@@ -1,0 +1,3 @@
+Build process:
+BUILD_MODE=RELEASE
+BUILD_MODE=DEBUG

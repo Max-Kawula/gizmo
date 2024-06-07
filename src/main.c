@@ -5,28 +5,13 @@
 
 #define RAYLIB_NEW_RLGL
 
-typedef struct gizmo {
-	Model model;
-	Vector3 pos;
-	float angle;
-	Vector3 vel;
-} gizmo;
-
-void updateGizmo(gizmo* g);
-
-
 /////////////
 // PROGRAM //
 /////////////
 int main(void) {
 
-	gizmo giz;
-	giz.pos = (Vector3){0.0f,0.0f,0.0f};
-	giz.angle = 0.0f;
-	giz.vel = (Vector3){0.0f,0.0f,0.0f}; 
-	giz.model = LoadModel("../assets/models/gizmoid.obj");
-	*giz.model.materials = LoadMaterialDefault(); //TODO give the dude a mat
-	
+	Model model = LoadModel("assets/models/testCube.obj");
+
 	const int screenWidth = 640;
 	const int screenHeight = 480;
 
@@ -51,8 +36,8 @@ int main(void) {
 
 			BeginMode3D(camera);//DRAW
 
-				DrawGrid(10,1.0f);
-				DrawModelEx( giz.model, giz.pos, (Vector3){0.0f,1.0f,0.0}, giz.angle, (Vector3){1.0f,1.0f,1.0f}, WHITE );
+			DrawGrid(10,1.0f);
+			DrawModel(model, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, RED);
 
 			EndMode3D();
 		EndDrawing();
