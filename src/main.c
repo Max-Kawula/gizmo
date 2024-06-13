@@ -1,43 +1,56 @@
 #include <stdio.h>
-#include <stdlib.h>//using malloc
+//#include <stdlib.h>//using malloc
 #include "raylib.h"
-#include "rlgl.h"
+#include "raymath.h"
+#include "gamecamera.h"
+#include "gizmo.h"
 
-#define RAYLIB_NEW_RLGL
+#ifndef GAMEPAD_ID
+#define GAMEPAD_ID 0
+#endif
+
+
+#define VEC3UP (Vector3){ 0.0f, 1.0f, 0.0f }
 
 /////////////
 // PROGRAM //
 /////////////
 int main(void) {
 
-	Model model = LoadModel("assets/models/testCube.obj");
-
-	const int screenWidth = 640;
-	const int screenHeight = 480;
+	const int screenWidth = 800;
+	const int screenHeight = 600;
 
 	InitWindow(screenWidth, screenHeight, "raylib - gizmo");
 
-    	Camera3D camera = { 0 };
-    	camera.position = (Vector3){ -10.0f, 15.0f, -10.0f };
-    	camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
-    	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
-    	camera.fovy = 45.0f;
-    	camera.projection = CAMERA_PERSPECTIVE;
+	Model gizmoModel = LoadModel("assets/models/gizmoid.obj");
 
-	DisableCursor();
+	Gizmo gizmo;
+	gizmo.model = &gizmoModel;
+	gizmo.position = Vector3Zero();
+	gizmo.yaw = 0.0f;
+
+	GameCamera gameCamera = { 0 };
+	gameCamera.distance = 10.0f;
+
 	SetTargetFPS(60);
 
+	
 	//GAME LOOP
 	while (!WindowShouldClose()) {//UPDATE
-		UpdateCamera(&camera, CAMERA_ORBITAL);
+		
+		updateGizmo( &gizmo, gameCamera.yaw );
+		updateGameCamera( &gameCamera, gizmo.position );
 
-		BeginDrawing();
+		BeginDrawing();//DRAW
 			ClearBackground(RAYWHITE);
 
-			BeginMode3D(camera);//DRAW
+			BeginMode3D( GameCameraToCamera3D(gameCamera) );//where the magic happens
 
 			DrawGrid(10,1.0f);
-			DrawModel(model, (Vector3){ 0.0f, 0.0f, 0.0f }, 1.0f, RED);
+			DrawSphere( (Vector3){ 5.0f, 0.0f, 0.0f }, 0.3f, PINK );//x
+			DrawSphere( (Vector3){ 0.0f, 0.0f, 5.0f }, 0.3f, SKYBLUE );//z
+
+			DrawModelEx(*gizmo.model, gizmo.position, VEC3UP, gizmo.yaw, Vector3One(), WHITE);
 
 			EndMode3D();
 		EndDrawing();

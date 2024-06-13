@@ -2,3 +2,4 @@ assets/blend
 bin
 obj
 debug
+*.swp
