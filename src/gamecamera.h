@@ -56,7 +56,10 @@ Camera GameCameraToCamera3D(GameCamera gCam) {
 	float z = hScale*cosf(gCam.yaw);//FIXME something is inheritly wrong with adding sin and cos together, maybe square results?
 	float x = hScale*sinf(gCam.yaw);
 
-	camera.position = Vector3Scale( (Vector3){ x, y, z }, gCam.distance );
+	Vector3 cameraOffset = (Vector3){ x, y, z };
+	cameraOffset = Vector3Scale(cameraOffset, gCam.distance);
+
+	camera.position = Vector3Add(cameraOffset, gCam.origin);
 
 	return camera;
 }
