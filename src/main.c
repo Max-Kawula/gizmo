@@ -42,17 +42,25 @@ int main(void) {
 		updateGameCamera( &gameCamera, gizmo.position );
 
 		BeginDrawing();//DRAW
+
 			ClearBackground(RAYWHITE);
 
 			BeginMode3D( GameCameraToCamera3D(gameCamera) );//where the magic happens
 
-			DrawGrid(10,1.0f);
-			DrawSphere( (Vector3){ 5.0f, 0.0f, 0.0f }, 0.3f, PINK );//x
-			DrawSphere( (Vector3){ 0.0f, 0.0f, 5.0f }, 0.3f, SKYBLUE );//z
+				DrawGrid(100,1.0f);
+				DrawSphere( (Vector3){ 5.0f, 0.0f, 0.0f }, 0.3f, PINK );//x
+				DrawSphere( (Vector3){ 0.0f, 0.0f, 5.0f }, 0.3f, SKYBLUE );//z
 
-			DrawModelEx(*gizmo.model, gizmo.position, VEC3UP, gizmo.yaw, Vector3One(), WHITE);
+				DrawModelEx(*gizmo.model, gizmo.position, VEC3UP, gizmo.yaw*RAD2DEG, Vector3One(), WHITE);
+				//i have a sneaking suspicion that the angle needs to be provided in degrees. if true, highly fucking stupid.
 
 			EndMode3D();
+			
+			//HUD
+			DrawText(TextFormat("xVel: %f", gizmo.velocity.x), 20, 20, 10, RED);
+			DrawText(TextFormat("zVel: %f", gizmo.velocity.z), 20, 35, 10, BLUE);
+			DrawText(TextFormat("yaw: %f Radians", gizmo.yaw), 20, 50, 10, GREEN);
+
 		EndDrawing();
 
 	}

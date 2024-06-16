@@ -43,7 +43,6 @@ Camera GameCameraToCamera3D(GameCamera gCam) {
 
 	Camera3D camera = { 0 }; //locally stored Camera3D
 	
-	//camera.position = gCam.origin + (Vector3){ 0.0f, 0.0f, 1.0f };
 	camera.target = gCam.origin;
 	camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
 	camera.fovy = cameraFov;
@@ -51,9 +50,8 @@ Camera GameCameraToCamera3D(GameCamera gCam) {
 	
 	float y = sinf(gCam.pitch);
 	float hScale = cosf(gCam.pitch);
-	//hScale = hScale*hScale;//cosine squared!
 				
-	float z = hScale*cosf(gCam.yaw);//FIXME something is inheritly wrong with adding sin and cos together, maybe square results?
+	float z = hScale*cosf(gCam.yaw);//FIXME according to GBD the unit vector doesn't add up to 1.0?
 	float x = hScale*sinf(gCam.yaw);
 
 	Vector3 cameraOffset = (Vector3){ x, y, z };
