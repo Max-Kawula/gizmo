@@ -38,7 +38,7 @@ int main(void) {
 	//GAME LOOP
 	while (!WindowShouldClose()) {//UPDATE
 		
-		updateGizmo( &gizmo, gameCamera.yaw );
+		updateGizmo( &gizmo );
 		updateGameCamera( &gameCamera, gizmo.position );
 
 		BeginDrawing();//DRAW

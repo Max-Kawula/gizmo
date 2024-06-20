@@ -8,63 +8,64 @@
 #ifndef GIZMO_H
 #define GIZMO_H
 
-// Eventually these are to be turned into vehicle stats. 
-// This just makes it easier to compile because i don't
-// need to worry about the unused variables.
-#define ACCEL 2.0f //2 m/s**2
-#define DRAG_COEFFICIENT 0.02f 
-#define STEER_SPEED (PI/2.0f) //TODO for now, steer is a fixed speed. later i want it implemented with aerodynamics
-#define RUDDER_EFFECT 0.10f //think of this as ratio of the rudder's affect on the ships steer
-#define MAX_RUDDER_ANGLE (PI/4.0f) //45 degrees
-
+//eventually be turned into struct members
+#define THRUST 2000.0f //in newtons
+#define WEIGHT 1000.0f //in kilograms
+#define DRAG 0.02f //so the thing slow down
+#define STEER_SPEED (PI/2.0f)
+#define GRIP 1.0f //coefficient of friction
 
 typedef struct Gizmo {
 	Model* model;
 	Vector3 position;
 	Vector3 velocity;
-	float yaw;
+	float yaw;//[-PI,PI] range
 } Gizmo;
 
-void updateGizmo(Gizmo* g, float cameraYaw) {
-
-	(void)cameraYaw;//TODO unused variable, i plan on using it later for slip mode.
+void updateGizmo(Gizmo* g) {
 
 	//LOCAL VARIABLE DECLARTIONS
 	float deltaTime = GetFrameTime();
-	//float velMag = Vector3Length(g->velocity);
-	float xAccel = 0;
-	float zAccel = 0;
-	float xAxis = 0;
-	//float yAxis = 0;
-	float rTrigger = 0;
+	float xAxis = GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_X);
+	float rTrigger = (1.0f+(GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_RIGHT_TRIGGER)))/2.0f;//some quick maff to turn it into [0..1] range
+	Vector2 steerVector = (Vector2){sinf(g->yaw), cosf(g->yaw)};
+	Vector2 gripVector = (Vector2){sinf(g->yaw - PI/2), cosf(g->yaw - PI/2)}; //the lateral grip unit vector :v
+	float det = 0.0f;
 
-	//OBTAIN INPUTS
-	xAxis = GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_X);
-	//yAxis = GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_Y);
-	rTrigger = (1+(GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_RIGHT_TRIGGER)))/2;//some quick maff to turn it into [0..1] range
 
-	//CONVERT INPUTS INTO FORCES
-	if(rTrigger > EPSILON) {//apply thruster force
-		xAccel = rTrigger*sinf(g->yaw)*ACCEL;//TODO check to make sure that we don't need deltaTime here.
-		zAccel = rTrigger*cosf(g->yaw)*ACCEL;
+	//VEHICLE ROTATION
+	if( !(FloatEquals(xAxis, 0.0f)) ) {//TODO if statement might be pointless
+		g->yaw += -1.0f*deltaTime*xAxis*STEER_SPEED;
+		g->yaw = Wrap(g->yaw, -PI, PI);
 	}
 
-	if((xAxis > EPSILON) || (xAxis < -EPSILON)) {//apply steering
-		g->yaw -= deltaTime*xAxis*STEER_SPEED;
+	//STEERING PHYSICS
+	//first we take the determinant of Velocity and steerVector
+	det = (g->velocity.x * steerVector.y) - (g->velocity.z * steerVector.x);
+	DrawText(TextFormat("Determinant: %f", det), 20, 65, 10, RED);
+
+	//scale gripVector by this determinant
+	gripVector = Vector2Scale(gripVector, det);//TODO more deltaTime confusion, does steering only apply a fraction of the velocity?
+	//add to velocity!
+	g->velocity = Vector3Add(g->velocity, (Vector3){gripVector.x, 0.0f, gripVector.y});
+
+
+
+	//APPLY THRUSTER FORCE
+	if(rTrigger > EPSILON) {
+		g->velocity.x += deltaTime*rTrigger*sinf(g->yaw)*sinf(g->yaw)*(THRUST/WEIGHT);
+		g->velocity.z += deltaTime*rTrigger*cosf(g->yaw)*cosf(g->yaw)*(THRUST/WEIGHT);
 	}
 
-	g->yaw = Wrap(g->yaw, 0, PI*2); //keep rotations within [0..TAU]
+
 
 	//APPLY FORCES
 	//theoretically this is thruster+aerodynamics/drag
-	g->velocity.x += xAccel*deltaTime;
-	g->velocity.z += zAccel*deltaTime;
+	g->position.x += deltaTime*g->velocity.x;
+	g->position.z += deltaTime*g->velocity.z;
 
-	g->position.x += g->velocity.x;
-	g->position.z += g->velocity.z;
-
-	g->velocity.x *= 1-DRAG_COEFFICIENT;//apply drag after acceleration is applied
-	g->velocity.z *= 1-DRAG_COEFFICIENT;
+	g->velocity.x = g->velocity.x * (1-deltaTime*DRAG);//apply drag after acceleration is applied
+	g->velocity.z = g->velocity.z * (1-deltaTime*DRAG);
 
 	
 
