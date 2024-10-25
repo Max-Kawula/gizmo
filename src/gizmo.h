@@ -7,59 +7,80 @@
 
 #ifndef GIZMO_H
 #define GIZMO_H
+
 //eventually be turned into struct members
-#define THRUST 2000.0f //in newtons
-#define WEIGHT 1000.0f //in kilograms
-#define DRAG 0.02f //so the thing slow down
-#define STEER_SPEED (PI/2.0f)
-#define GRIP 1.0f //coefficient of friction
+#define THRUST 6000.0f //newtons
+#define WEIGHT 3000.0f //kg
+#define DRAG_COEFFICIENT 0.90f //i have no idea
+#define MAX_RUDDER_SPEED (PI/6.0f) //30 degrees per second (at a certain speed)
+#define MAX_DIVING_ANGLE (PI/6.0f)
+
 
 typedef struct Gizmo {
 	Model* model;
 	Vector3 position;
 	Vector3 velocity;
-	float yaw;//[-PI,PI] range
+	Vector3 rotation;
+	Vector3 angularVel;//this is a really dumb idea
+	BoundingBox volume; //this is a dumb idea
 } Gizmo;
 
-void updateGizmo(Gizmo* g) {
+Gizmo initGizmo(Model* model) {
 
-	//LOCAL VARIABLE DECLARTIONS
+	/* 
+	 * loading a model is confusing the shit out of me,
+	 * need instance it in the main code
+	*/
+
+	Gizmo g = { 0 };
+
+	g.model = model;//pointer assinged to pointer
+ 	g.volume = GetModelBoundingBox(*model);//dereference model
+
+	return g;
+
+}
+
+void updateGizmo(Gizmo* g, float camYaw) {
+
+	/*
+	 * this is my most unreadable code yet
+	 * im basically grabbing a ton of inputs and transforming them at the same time
+	 * im also doing all local variable declarations at the start of the block
+	 * because the internet told me to do things like this
+	 */
 	float deltaTime = GetFrameTime();
-	float xAxis = GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_X);
-	float rTrigger = (1.0f+(GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_RIGHT_TRIGGER)))/2.0f;//some quick maff to turn it into [0..1] range
-	float det;//these have to do with steering
-	float sine;//TODO should yaw be replaced with a unit vector? discuss.
-	float cosine;
+	Vector2 inputDir;
+	inputDir.x = GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_X);
+	inputDir.y = GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_Y);
+	float stickMag = Vector2Length(inputDir);
+	Vector2 intendedDir = Vector2Rotate( Vector2Normalize(inputDir), camYaw );
+	float rTrigger = (1.0f+(GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_RIGHT_TRIGGER)))/2.0f;
+	float lTrigger = (1.0f+(GetGamepadAxisMovement(GAMEPAD_ID, GAMEPAD_AXIS_LEFT_TRIGGER)))/2.0f;
+	float intendedPitch = (rTrigger - lTrigger) * sinf(PI/6.0f);
+	Vector2 gizDir = { sinf(g->rotation.y), cosf(g->rotation.y) };
+	float dot = Vector2DotProduct(gizDir, intendedDir);
+	float det = (gizDir.x * intendedDir.y) - (gizDir.y * intendedDir.x);
 
-	//VEHICLE ROTATION
-	g->yaw += -1.0f*deltaTime*xAxis*STEER_SPEED;
-	g->yaw = Wrap(g->yaw, -PI, PI);
-
-	sine = sinf(g->yaw); //TODO declare locals here instead?
-	cosine = cosf(g->yaw);
-
-	//STEERING PHYSICS
-	det = (g->velocity.x * cosine) - (g->velocity.z * sine);//???
-	g->velocity.x += det * -cosine;
-	g->velocity.z += det * sine;
-
-	//APPLY THRUSTER FORCE
-	if(rTrigger > EPSILON) {
-		g->velocity.x += deltaTime*rTrigger*sine*(THRUST/WEIGHT);
-		g->velocity.z += deltaTime*rTrigger*cosine*(THRUST/WEIGHT);
+	//stickMag determines percentage of thrust
+	//the fucking stick is able to produce values outside of 1.0f
+	//all thanks to it not being a circle
+	if(stickMag > 1.0f) {
+		stickMag = 1.0f;
 	}
 
+	//dot will represent how much steering is needed to go towards intendedDir
+	dot = (dot - 1)/-2; //put dot into a [0.0,1.0] range
 
 
-	//APPLY FORCES
-	//theoretically this is thruster+aerodynamics/drag
+
+
+
 	g->position.x += deltaTime*g->velocity.x;
 	g->position.z += deltaTime*g->velocity.z;
 
-	g->velocity.x = g->velocity.x * (1-deltaTime*DRAG);//apply drag after acceleration is applied
-	g->velocity.z = g->velocity.z * (1-deltaTime*DRAG);
-
-	
+	g->velocity.x = //drag is something like 0.5f * DRAG * velocity^2
+	g->velocity.z = //this produces a force, which then accelerates the mass
 
 }
 

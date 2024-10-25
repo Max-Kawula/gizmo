@@ -1,47 +1,45 @@
-#maxmakefile 1.1
-#made for linux
-#expects for raylib.h and librarylib.so to be installed in /usr/local/include /usr/local/lib
+# maxmakefile 1.5
 
-#compiler settings
-CC		?= gcc
-CFLAGS		?= -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -Wall -Wextra -Werror -pedantic
-BUILD_MODE	?= RELEASE# RELEASE or DEBUG
+BUILD_MODE ?= RELEASE
 
-#file directories
-SRCDIR		?= src
-OBJ_D		?= obj#temporarily named that way
-BIN_D		?= bin
-DEBUGDIR	?= debug
+# Compiler Settings
+CC	= gcc
+LFLAGS	= -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+DFLAGS	= -MP -MD
+CFLAGS	= $(LFLAGS) -Wall -Wextra -pedantic -std=c99 $(DFLAGS)
 
-#build mode settings, OBJD and BIND are temporary variables
-ifeq ($(BUILD_MODE),RELEASE)
-	CFLAGS	+= -O2
-	OBJDIR	 = $(OBJ_D)
-	BINDIR	 = $(BIN_D)
-else
-	CFLAGS	+= -g -O0
-	OBJDIR	 = $(DEBUGDIR)/$(OBJ_D)
-	BINDIR	 = $(DEBUGDIR)/$(BIN_D)
+# Directories
+SRCDIR	= src
+BINDIR	= build
+GDBDIR	= debug
+
+ifeq ($(BUILD_MODE), RELEASE)
+	CFLAGS += -O2
 endif
 
-SRC_FILES	 = $(wildcard $(SRCDIR)/*.c)
-OBJ_FILES	 = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRC_FILES))
-BIN		?= output
+ifeq ($(BUILD_MODE), DEBUG)
+	CFLAGS += -g -O0
+endif
+
+# Files
+# for OBJS, first arg of patsubst i'm purposely not using $(SRCDIR)/%.c to see if it breaks it
+SRCS	= $(wildcard $(SRCDIR)/*.c)
+OBJS	= $(patsubst $(SRCDIR)/%.c, $(SRCDIR)/%.o, $(SRCS))
+DEPS	= $(patsubst $(SRCDIR)/%.c, $(SRCDIR)/%.d, $(SRCS))
+BIN	= bin
 
 .phony: clean all
 
 all: $(BIN)
 
-$(BIN): $(OBJ_FILES)
-	$(CC) $^ $(CFLAGS) -o $(BINDIR)/$@
+$(BIN): $(OBJS)
+	$(CC) $^ $(LFLAGS) -o $(BINDIR)/$@
 
-$(OBJDIR)/%.o: $(SRCDIR)/%.c
-	$(CC) $^ $(CFLAGS) -c -o $@
+$(SRCDIR)/%.o: $(SRCDIR)/%.c
+	$(CC) $< $(CFLAGS) -c -o $@
 
 clean:
-	rm -rf $(BINDIR)/* $(OBJDIR)/* $(DEBUGDIR)/$(BINDIR)/* $(DEBUGDIR)/$(OBJDIR)/*
-run: 
-	$(BINDIR)/$(BIN)
+	rm -rf $(BINDIR)/$(BIN) $(OBJS) $(DEPS)
 
-rungdb:
-	gdb $(DEBUGDIR)/$(BINDIR)/$(BIN)
+# include our dependencies
+-include $(DEPS)
