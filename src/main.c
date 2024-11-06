@@ -19,11 +19,11 @@ int main(void) {
 	/* LOAD THINGS */
 	
 	Camera camera = {
-		{0.0f, 5.0f, 10.0f},	//position
+		{30.0f, 30.0f, 30.0f},	//position
 		{0.0f, 0.0f, 0.0f},	//target
 		{0.0f, 1.0f, 0.0f},	//up
-		60.0f,			//fovy
-		CAMERA_PERSPECTIVE	//projection
+		20.0f,			//fovy
+		CAMERA_ORTHOGRAPHIC	//projection
 	};
 	
 	SetTargetFPS(60);
@@ -40,11 +40,11 @@ int main(void) {
 	car.materials[0].shader = carShader;
 	car.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = carTex;
 
-
-	/* INIT VEHICLE */
-	Vehicle veh = { 
-		.transform = MatrixIdentity(),
+	Vehicle veh = {
+		.origin = MatrixIdentity(),
 		.vel = Vector3Zero(),
+		.angularVel = QuaternionIdentity(),
+		.input = { 0 }
 	};
 
 	/////////////////////
@@ -52,20 +52,16 @@ int main(void) {
 	/////////////////////
 	
 	while(!WindowShouldClose()) {
-		/* UPDATE LOGIC */	
-		// UpdateCamera(&camera, CAMERA_ORBITAL);
 
-		VehicleControl(&veh);
-		car.transform = veh.transform; // match model to object transform
-		camera = VehicleCameraUpdate(&veh);
-
+		VehicleMonoUpdate(&veh);
+		car.transform = veh.origin;
 
 		BeginDrawing();
 			/* DRAW HERE */
-			ClearBackground((Color){40,40,40,255});
+			ClearBackground((Color){50,50,80,255});
 
 			BeginMode3D(camera);
-				DrawGrid(50, 1);
+				DrawGrid(50, 2);
 				DrawModel(car, Vector3Zero(), 1.0f, WHITE);
 			EndMode3D();
 

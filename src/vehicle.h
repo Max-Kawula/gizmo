@@ -1,77 +1,198 @@
+/************************\
+||	vehicle.h	||
+\************************/
+
+//by Max Kawula
+
 #ifndef VEHICLE_H
 #define VEHICLE_H
 
 #include "raylib.h"
 #include "raymath.h"
+#include "carspecs.h"
+
+// this is kind of a vector3 in disguise!
+typedef struct InputField {
+	float thrust;
+	float brake;
+	float steer;
+} InputField;
 
 typedef struct Vehicle {
-	Matrix transform;
+	Matrix origin;
 	Vector3 vel;
+	Quaternion angularVel;
+	InputField input;
 } Vehicle;
 
-void VehicleControl(Vehicle* v)
+int VehicleSpeedSign(Vehicle* v)
+{
+	Matrix t = v->origin;
+ 	Vector3 forward = { t.m8, t.m9, t.m10};
+
+ 	float dot = Vector3DotProduct(forward, v->vel);
+ 	return (signbit(dot) ? -1 : 1);
+}
+
+Vector3 MatrixBasisVector(Matrix* matrix, int v)
+{
+	Vector3 basis = { 0 };
+	float* m = (float*)matrix;
+
+	basis.x = *(m + 0 + v);
+	basis.y = *(m + 4 + v);
+	basis.z = *(m + 8 + v);
+	
+	return basis;
+}
+
+float VehicleLongForce(Vehicle* v)
+{
+		/* CONSTANTS */
+	const float ENGINE_THRUST = 2000.0f; //newtons
+	const float BRAKE_FORCE = 5000.0f; //newtons
+
+	const float C_RR = 10.5f;
+
+		/* FORCE CALC */
+	InputField in = v->input;
+
+ 	Vector3 forward = MatrixBasisVector(&v->origin, 2);
+
+ 	float dot = Vector3DotProduct(forward, v->vel);
+ 	int dir = (signbit(dot) ? -1 : 1);
+
+	float forceThrust = in.thrust * ENGINE_THRUST;
+	float forceBrake  = -in.brake * dir * BRAKE_FORCE;
+	float forceRR	  = dot * -C_RR;
+
+	float forceTotal = forceThrust + forceBrake + forceRR;
+
+	return forceTotal;
+}
+
+float VehicleLatForce(Vehicle* v)
+{
+ 	Vector3 right = MatrixBasisVector(&v->origin, 0);
+	float sideForce = Vector3DotProduct(right, v->vel);
+
+	return -sideForce;
+}
+// just want to note that this is very inaccurate, basically setting the position
+void VehicleRotate(Vehicle* v)
 {
 	float deltaTime = GetFrameTime();
 
-		/* INPUTS */
-	float throttle 	= IsKeyDown(KEY_W);
-	float brake 	= IsKeyDown(KEY_S);
-	float steer 	= IsKeyDown(KEY_A) - IsKeyDown(KEY_D);
+	const float MAX_STEER = PI*0.75; //60 degrees
+	float deltaYaw = v->input.steer * MAX_STEER; //delta is term for wheel's rotation around car's axis
 
-		/* VEHICLE STATS */
-	const float MAX_ACCEL = 8.0f;
-	const float MAX_STEER = PI/24.0f;
-	const float MAX_GRIP = 14.0f; // m/s^2
-
-		/* INTERMEDIATE DATA TYPES */
-	Matrix t = v->transform;
-
-	// Vector3 xBasis = { t.m0, t.m1, t.m2 };
-	// Vector3 yBasis = { t.m4, t.m5, t.m6 };
-	Vector3 zBasis = { t.m8, t.m9, t.m10};
-
-	Vector3 pos = { t.m12, t.m13, t.m14};
-	Vector3 vel = v->vel; // just so its consistent! 
-
-	Quaternion rotation = QuaternionFromMatrix(t);
-
-	float speed = Vector3Length(vel);
-	float yaw = atan2f(zBasis.x, zBasis.z);
-
-	float dot = Vector3DotProduct(zBasis, vel);
-	int direction = (signbit(dot) ? -1 : 1);
-	speed *= direction;
-
-		/* ACCEL PHYSICS */
-	float engineAccel = deltaTime * throttle * MAX_ACCEL;
-	float brakeAccel = deltaTime * direction*brake * MAX_ACCEL; // TODO create variable for brake force!
-	float gripAccel = zBasis.x*vel.z - zBasis.z*vel.x; // multiplying by velocity means its already deltaTime'd
-
-	Vector3 accel = { gripAccel, 0.0f, engineAccel - brakeAccel };
-	if(Vector3Length(accel) > MAX_GRIP) {
-		accel = Vector3Normalize(accel);
-		accel = Vector3Scale(accel, MAX_GRIP);
-	}
-
-	accel = Vector3RotateByQuaternion(accel, rotation);
-
-	vel = Vector3Add(vel, accel); //update velocity
-
-		/* STEERING */
-	float deltaYaw = steer*speed*MAX_STEER;
-	Matrix newTransform = MatrixRotateY(yaw + deltaYaw * deltaTime);
-
-		/* CURSED MATRIX MATH */
-	newTransform.m12 = pos.x + vel.x*deltaTime;
-	newTransform.m13 = pos.y + vel.y*deltaTime;
-	newTransform.m14 = pos.z + vel.z*deltaTime;
-
-		/* SIDE-EFFECT */
-	v->transform = newTransform;
-	v->vel = vel;
+	v->origin = MatrixMultiply(MatrixRotateY(deltaYaw*deltaTime), v->origin);
 
 	return;
 }
+
+
+Vector3 VehicleDragForce(Vehicle* v);
+
+void VehicleMonoUpdate(Vehicle* v)
+{
+	const float deltaTime = GetFrameTime();
+
+ 		/* INPUTS */
+	v->input.thrust = IsKeyDown(KEY_W);
+	v->input.brake	= IsKeyDown(KEY_S);
+	v->input.steer	= IsKeyDown(KEY_A) - IsKeyDown(KEY_D);
+
+
+		/* VEHICLE STATE */
+ 	Vector3 forward = MatrixBasisVector(&v->origin, 2);
+ 	Vector3 right = MatrixBasisVector(&v->origin, 0);
+	
+		/* SPACE-SHIP STEERING */
+	VehicleRotate(v);
+
+		/* CALC FORCES */
+	float forceLong = VehicleLongForce(v);
+	float forceLat = VehicleLatForce(v);
+
+		/* UPDATE ACCEL */
+	Vector3 forceLongV = Vector3Scale(forward, forceLong);
+	Vector3 forceLatV = Vector3Scale(right, forceLat);
+
+	Vector3 accel = Vector3Scale(forceLongV, 1.0f/975.0f); // FORCE / MASS (using a literal for now)
+	accel = Vector3Add(accel, forceLatV);
+
+		/* UPDATE VELOCITY */
+	v->vel = Vector3Add(v->vel, Vector3Scale(accel, deltaTime));
+
+		/* UPDATE POSITION */
+	Vector3 translation = Vector3Scale(v->vel, deltaTime);
+	v->origin.m12 += translation.x;
+	v->origin.m13 += translation.y;
+	v->origin.m14 += translation.z;
+
+
+
+	return;
+}
+
+/*
+ * leaving this here so i can reference the gear box calculations
+ */
+// void VehicleControl(Vehicle* v)
+// {
+// 	CarSpec car = ae86; //this should fucking work
+// 
+// 	float driveForce = car.engineTorque * car.gearRatio[1] * car.diffRatio / car.wheelRadius;
+// 	float maxForce = car.mu * car.mass * 9.81f;
+// 
+// 	float deltaTime = GetFrameTime();
+// 
+//  		/* INPUTS */
+// 	float inputThrottle 	= IsKeyDown(KEY_W);
+// 	float inputBrake 	= IsKeyDown(KEY_S);
+// 	//float inputSteer 	= IsKeyDown(KEY_A) - IsKeyDown(KEY_D);
+// 
+// 		/* VEHICLE STATE */
+// 	Matrix t = v->origin;
+//  	Vector3 forward = { t.m8, t.m9, t.m10};
+// 
+// 	float speed = Vector3Length(v->vel);
+// 
+//  	float dot = Vector3DotProduct(forward, v->vel);
+//  	int direction = (signbit(dot) ? -1 : 1);
+// 
+// 		/* UPDATE ACCEL */
+// 	Vector3 forceTraction	= Vector3Scale(forward, inputThrottle*driveForce);
+// 	Vector3 forceBrake	= Vector3Scale(forward, -inputBrake*direction*car.brakeForce);
+// 	Vector3 forceDrag	= Vector3Scale(v->vel, -car.drag * speed);
+// 	Vector3 forceRR		= Vector3Scale(v->vel, -car.rr);
+// 
+// 	Vector3 force = { 0 };
+// 	force = Vector3Add(force, forceTraction);
+// 	force = Vector3Add(force, forceBrake);
+// 	force = Vector3Add(force, forceDrag); // TODO does it make sense to add drag here?
+// 	force = Vector3Add(force, forceRR);
+// 
+// 	Vector3 forceDirection = Vector3Normalize(force);
+// 	float forceMagnitude = Vector3Length(force);
+// 	float forceCapped = fmin(forceMagnitude, maxForce);
+// 
+// 	force = Vector3Scale(forceDirection, forceCapped);
+// 
+// 	Vector3 accel = Vector3Scale(force, 1.0f/car.mass); // FORCE / MASS
+// 
+// 		/* UPDATE VELOCITY */
+// 	v->vel = Vector3Add(v->vel, Vector3Scale(accel, deltaTime));
+// 
+// 		/* UPDATE POSITION */
+// 	Vector3 translation = Vector3Scale(v->vel, deltaTime);
+// 	v->origin.m12 += translation.x;
+// 	v->origin.m13 += translation.y;
+// 	v->origin.m14 += translation.z;
+// 
+// 	return;
+// }
 
 Camera VehicleCameraUpdate(Vehicle* v)
 {
@@ -83,7 +204,7 @@ Camera VehicleCameraUpdate(Vehicle* v)
 		.projection = CAMERA_PERSPECTIVE
 	};
 
-	Matrix t = v->transform;
+	Matrix t = v->origin;
 	Vector3 position = { t.m12, t.m13, t.m14};
 	Quaternion rotation = QuaternionFromMatrix(t);
 
