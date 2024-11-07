@@ -56,6 +56,8 @@ int main(void) {
 		VehicleMonoUpdate(&veh);
 		car.transform = veh.origin;
 
+		camera = VehicleCameraUpdate(&veh);
+
 		BeginDrawing();
 			/* DRAW HERE */
 			ClearBackground((Color){50,50,80,255});
