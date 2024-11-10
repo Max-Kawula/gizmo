@@ -22,7 +22,7 @@ int main(void) {
 		{30.0f, 30.0f, 30.0f},	//position
 		{0.0f, 0.0f, 0.0f},	//target
 		{0.0f, 1.0f, 0.0f},	//up
-		20.0f,			//fovy
+		40.0f,			//fovy
 		CAMERA_ORTHOGRAPHIC	//projection
 	};
 	
@@ -44,7 +44,8 @@ int main(void) {
 		.origin = MatrixIdentity(),
 		.vel = Vector3Zero(),
 		.angularVel = QuaternionIdentity(),
-		.input = { 0 }
+		.input = { 0 },
+		.mass = 975.0f
 	};
 
 	/////////////////////
@@ -63,7 +64,7 @@ int main(void) {
 			ClearBackground((Color){50,50,80,255});
 
 			BeginMode3D(camera);
-				DrawGrid(50, 2);
+				DrawGrid(200, 5);
 				DrawModel(car, Vector3Zero(), 1.0f, WHITE);
 			EndMode3D();
 
